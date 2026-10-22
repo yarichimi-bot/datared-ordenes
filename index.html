@@ -189,10 +189,9 @@
             font-size: 0.8rem;
         }
 
-        /* Mapa más grande y cómodo */
         #minimap {
             width: 100%;
-            height: 280px;
+            height: 300px;
             border-radius: 8px;
             margin-top: 8px;
             border: 1px solid var(--border);
@@ -364,7 +363,7 @@
             <button type="button" class="btn-add" onclick="agregarFilaEquipo()">➕ Agregar otro equipo</button>
         </div>
 
-        <!-- GEOREFERENCIA CON MAPA Y LONG PRESS -->
+        <!-- GEOREFERENCIA CON MAPA HÍBRIDO Y MANTENER PRESIONADO -->
         <div class="form-group">
             <label>Georreferencia (GPS, Coordenadas o Mantén presionado el mapa)</label>
             <div class="gps-section">
@@ -372,7 +371,7 @@
                 <button type="button" class="btn-gps" onclick="obtenerGPS()">📍 GPS Actual</button>
             </div>
             <div id="minimap"></div>
-            <div class="map-instruction">💡 Mantén presionado unos segundos el mapa en la casa exacta para marcar el punto.</div>
+            <div class="map-instruction">💡 Mantén presionado unos segundos el mapa para marcar el punto exacto.</div>
         </div>
 
         <div class="form-group">
@@ -426,27 +425,39 @@
 
     function inicializarMapa(lat, lon) {
         if (!map) {
-            // Capas optimizadas
+            // Capa de Calles detallada
             const calles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-                maxZoom: 19, 
+                maxZoom: 20, 
                 attribution: '© OpenStreetMap' 
             });
             
+            // Satélite con zoom extendido (maxNativeZoom permite acercar al máximo sin cuadros grises)
             const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
-                maxZoom: 17, 
+                maxZoom: 20, 
+                maxNativeZoom: 17, 
                 attribution: 'Tiles &copy; Esri' 
             });
 
+            // Capa de Nombres de Calles y Etiquetas (para poner sobre el satélite)
+            const etiquetas = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 20,
+                attribution: 'Labels &copy; Esri'
+            });
+
+            // Capa Híbrida (Satélite + Nombres de Calles combinados)
+            const hibrido = L.layerGroup([satelite, etiquetas]);
+
             map = L.map('minimap', {
                 center: [lat, lon],
-                zoom: 16,
-                layers: [satelite],
-                tap: false // Mejora la fluidez táctil en móviles
+                zoom: 17,
+                layers: [hibrido], // Arranca por defecto en Híbrido (Satélite con nombres de calles)
+                tap: false
             });
 
             const baseLayers = {
-                "🛰️ Satélite": satelite,
-                "🗺️ Calles (Detalle Máximo)": calles
+                "🛰️ Híbrido (Satélite + Calles)": hibrido,
+                "🗺️ Solo Calles (Detalle Máximo)": calles,
+                "🌍 Solo Satélite": satelite
             };
             L.control.layers(baseLayers).addTo(map);
 
@@ -457,25 +468,23 @@
                 setearCoordenadas(pos.lat, pos.lng);
             });
 
-            // Marcar solo al mantener presionado (Long Press de 800ms)
+            // Mantener presionado (Long Press de 800ms) para marcar ubicación
             let pressTimer = null;
-            
             map.on('mousedown touchstart', function(e) {
-                // Si es un toque táctil o clic, iniciamos temporizador
                 pressTimer = setTimeout(() => {
                     const latlng = e.latlng || map.containerPointToLatLng(e.containerPoint);
                     marker.setLatLng(latlng);
                     setearCoordenadas(latlng.lat, latlng.lng);
-                    if(navigator.vibrate) navigator.vibrate(50); // Vibración háptica de confirmación
-                }, 800); // 0.8 segundos manteniendo presionado
+                    if(navigator.vibrate) navigator.vibrate(50);
+                }, 800);
             });
 
             map.on('mouseup touchend mousemove touchmove', function() {
-                clearTimeout(pressTimer); // Si mueve el dedo o suelta antes, se cancela
+                clearTimeout(pressTimer);
             });
 
         } else {
-            map.setView([lat, lon], 17);
+            map.setView([lat, lon], 18);
             marker.setLatLng([lat, lon]);
         }
         setTimeout(() => { map.invalidateSize(); }, 300);
@@ -495,7 +504,7 @@
             const lon = parseFloat(partes[1]);
             if (!isNaN(lat) && !isNaN(lon)) {
                 if (map && marker) {
-                    map.setView([lat, lon], 17);
+                    map.setView([lat, lon], 18);
                     marker.setLatLng([lat, lon]);
                 }
             }

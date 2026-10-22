@@ -438,15 +438,15 @@
 
     function inicializarMapa(lat, lon) {
         if (!map) {
-            // Capa de Calles y Nombres ultranítida (CARTO Voyager)
-            const callesNombres = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { 
-                maxZoom: 20, 
-                attribution: '&copy; <a href="https://carto.com/">CARTO</a>' 
+            // Capa de Calles y Nombres ultranítida (OpenStreetMap estándar libre y sin API keys)
+            const callesNombres = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+                maxZoom: 19, 
+                attribution: '© OpenStreetMap' 
             });
             
             // Satélite Esri
             const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
-                maxZoom: 20, 
+                maxZoom: 19, 
                 maxNativeZoom: 17, 
                 attribution: 'Tiles &copy; Esri' 
             });

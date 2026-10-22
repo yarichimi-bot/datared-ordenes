@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DATA RED - Control Pro de Órdenes</title>
-    <!-- Leaflet CSS para el Mapa -->
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
@@ -189,10 +189,10 @@
             font-size: 0.8rem;
         }
 
-        /* Contenedor de Mapa Interactuable */
+        /* Mapa más grande y cómodo */
         #minimap {
             width: 100%;
-            height: 220px;
+            height: 280px;
             border-radius: 8px;
             margin-top: 8px;
             border: 1px solid var(--border);
@@ -364,15 +364,15 @@
             <button type="button" class="btn-add" onclick="agregarFilaEquipo()">➕ Agregar otro equipo</button>
         </div>
 
-        <!-- GEOREFERENCIA CON MAPA INTERACTIVO Y SATÉLITE -->
+        <!-- GEOREFERENCIA CON MAPA Y LONG PRESS -->
         <div class="form-group">
-            <label>Georreferencia (GPS, Coordenadas o Clic en el Mapa)</label>
+            <label>Georreferencia (GPS, Coordenadas o Mantén presionado el mapa)</label>
             <div class="gps-section">
                 <input type="text" id="georeferencia" placeholder="-21.992837,-63.66937" oninput="actualizarMiniMapaManual()">
                 <button type="button" class="btn-gps" onclick="obtenerGPS()">📍 GPS Actual</button>
             </div>
             <div id="minimap"></div>
-            <div class="map-instruction">💡 Tip: Haz clic en el mapa para marcar la casa exacta o cambia a vista satélite arriba a la derecha.</div>
+            <div class="map-instruction">💡 Mantén presionado unos segundos el mapa en la casa exacta para marcar el punto.</div>
         </div>
 
         <div class="form-group">
@@ -426,38 +426,56 @@
 
     function inicializarMapa(lat, lon) {
         if (!map) {
-            // Capas de Calles y Satélite
-            const calles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
-            const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+            // Capas optimizadas
+            const calles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+                maxZoom: 19, 
+                attribution: '© OpenStreetMap' 
+            });
+            
+            const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
+                maxZoom: 17, 
+                attribution: 'Tiles &copy; Esri' 
+            });
 
             map = L.map('minimap', {
                 center: [lat, lon],
                 zoom: 16,
-                layers: [satelite] // Arranca por defecto en satélite para ver techos y domicilios claros
+                layers: [satelite],
+                tap: false // Mejora la fluidez táctil en móviles
             });
 
             const baseLayers = {
                 "🛰️ Satélite": satelite,
-                "🗺️ Calles": calles
+                "🗺️ Calles (Detalle Máximo)": calles
             };
             L.control.layers(baseLayers).addTo(map);
 
             marker = L.marker([lat, lon], { draggable: true }).addTo(map);
 
-            // Actualizar coordenadas al arrastrar el pin
             marker.on('dragend', function(e) {
                 const pos = marker.getLatLng();
                 setearCoordenadas(pos.lat, pos.lng);
             });
 
-            // Actualizar coordenadas al hacer clic en el mapa
-            map.on('click', function(e) {
-                marker.setLatLng(e.latlng);
-                setearCoordenadas(e.latlng.lat, e.latlng.lng);
+            // Marcar solo al mantener presionado (Long Press de 800ms)
+            let pressTimer = null;
+            
+            map.on('mousedown touchstart', function(e) {
+                // Si es un toque táctil o clic, iniciamos temporizador
+                pressTimer = setTimeout(() => {
+                    const latlng = e.latlng || map.containerPointToLatLng(e.containerPoint);
+                    marker.setLatLng(latlng);
+                    setearCoordenadas(latlng.lat, latlng.lng);
+                    if(navigator.vibrate) navigator.vibrate(50); // Vibración háptica de confirmación
+                }, 800); // 0.8 segundos manteniendo presionado
+            });
+
+            map.on('mouseup touchend mousemove touchmove', function() {
+                clearTimeout(pressTimer); // Si mueve el dedo o suelta antes, se cancela
             });
 
         } else {
-            map.setView([lat, lon], 18);
+            map.setView([lat, lon], 17);
             marker.setLatLng([lat, lon]);
         }
         setTimeout(() => { map.invalidateSize(); }, 300);
@@ -477,7 +495,7 @@
             const lon = parseFloat(partes[1]);
             if (!isNaN(lat) && !isNaN(lon)) {
                 if (map && marker) {
-                    map.setView([lat, lon], 18);
+                    map.setView([lat, lon], 17);
                     marker.setLatLng([lat, lon]);
                 }
             }

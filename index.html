@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DATA RED - Control de Órdenes</title>
+    <title>DATA RED - Control Pro de Órdenes</title>
+    <!-- Leaflet CSS para el Mini-Mapa -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
             --bg-color: #0f172a;
@@ -104,7 +106,13 @@
             border-color: var(--primary);
         }
 
-        .row {
+        .row-3 {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .row-2 {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
@@ -113,6 +121,15 @@
         .gps-section {
             display: flex;
             gap: 8px;
+            align-items: center;
+        }
+
+        /* Contenedor de Equipos Dinámicos */
+        .equipo-row {
+            display: grid;
+            grid-template-columns: 2fr 2fr 40px;
+            gap: 6px;
+            margin-bottom: 8px;
             align-items: center;
         }
 
@@ -157,6 +174,32 @@
             background-color: #065f46;
         }
 
+        .btn-add {
+            background-color: #334155;
+            color: var(--primary);
+            font-size: 0.85rem;
+            padding: 8px;
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        .btn-del {
+            background-color: #7f1d1d;
+            color: white;
+            padding: 10px;
+            font-size: 0.8rem;
+        }
+
+        /* Mini Mapa */
+        #minimap {
+            width: 100%;
+            height: 150px;
+            border-radius: 8px;
+            margin-top: 8px;
+            border: 1px solid var(--border);
+            display: none;
+        }
+
         /* Modal Vista Previa */
         .modal {
             display: none;
@@ -194,7 +237,7 @@
             white-space: pre-wrap;
             word-break: break-word;
             color: #38bdf8;
-            max-height: 220px;
+            max-height: 200px;
             overflow-y: auto;
             margin-bottom: 10px;
         }
@@ -258,27 +301,30 @@
 <div class="container">
     <header>
         <h1>EMPRESA DATA RED</h1>
-        <p>Registro Técnico + Google Sheets</p>
+        <p>Control Avanzado de Órdenes y Georreferenciación</p>
     </header>
 
     <!-- FORMULARIO -->
     <div class="card">
         <h2>📝 Nueva Orden</h2>
         
-        <div class="row">
+        <div class="row-2">
             <div class="form-group">
                 <label>Código Cliente</label>
                 <input type="text" id="codCliente" placeholder="Ej: 2615301">
             </div>
             <div class="form-group">
-                <label>Nodo / TAP / Boquilla</label>
-                <input type="text" id="nodoTap" placeholder="Ej: YCB20 / D01 / 1">
+                <label>Nombre del Usuario</label>
+                <input type="text" id="nomCliente" placeholder="Ej: Bryan Mamani">
             </div>
         </div>
 
-        <div class="form-group">
-            <label>Nombre del Usuario (Cliente)</label>
-            <input type="text" id="nomCliente" placeholder="Ej: Bryan Junior Mamani Ticona">
+        <!-- NODO, TAP y BOQUILLA SEPARADOS -->
+        <label>Ubicación en Red (Nodo / TAP / Boquilla)</label>
+        <div class="row-3 form-group">
+            <input type="text" id="nodo" placeholder="Nodo (Ej: YCB20)">
+            <input type="text" id="tap" placeholder="TAP (Ej: D01)">
+            <input type="text" id="boquilla" placeholder="Boca (Ej: 1)" value="1">
         </div>
 
         <div class="form-group">
@@ -291,7 +337,7 @@
             <input type="text" id="tipoReporte" value="RETIRO DE EQUIPOS, SE FACTURA FUENTE">
         </div>
 
-        <div class="row">
+        <div class="row-2">
             <div class="form-group">
                 <label>Corte de TAP</label>
                 <select id="corteTap">
@@ -300,22 +346,28 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Equipos / MAC</label>
-                <input type="text" id="equiposMac" placeholder="Ej: TG2492: A405D604DB94">
+                <label>Qué se Factura</label>
+                <input type="text" id="facturacion" placeholder="Ej: FUENTE 2.5A: 1">
             </div>
         </div>
 
+        <!-- EQUIPOS DINÁMICOS (MÚLTIPLES DECOS / MÓDEMS) -->
         <div class="form-group">
-            <label>Qué se Factura (Ítems)</label>
-            <input type="text" id="facturacion" placeholder="Ej: FUENTE 2.5A: 1">
+            <label>Equipos a Retirar / Instalar (Modelo y Serie/MAC)</label>
+            <div id="listaEquiposContainer">
+                <!-- Se inyecta dinámicamente -->
+            </div>
+            <button type="button" class="btn-add" onclick="agregarFilaEquipo()">➕ Agregar otro equipo</button>
         </div>
 
+        <!-- GEOREFERENCIA CON MAPA EN TIEMPO REAL -->
         <div class="form-group">
-            <label>Georreferencia (GPS Automático)</label>
+            <label>Georreferencia (GPS o Coordenadas)</label>
             <div class="gps-section">
-                <input type="text" id="georeferencia" placeholder="-21.992837,-63.66937">
-                <button type="button" class="btn-gps" onclick="obtenerGPS()">📍 Capturar GPS</button>
+                <input type="text" id="georeferencia" placeholder="-21.992837,-63.66937" oninput="actualizarMiniMapaManual()">
+                <button type="button" class="btn-gps" onclick="obtenerGPS()">📍 GPS Actual</button>
             </div>
+            <div id="minimap"></div>
         </div>
 
         <div class="form-group">
@@ -323,10 +375,10 @@
             <input type="text" id="tecnico" value="José Orlando Garcia G #3788">
         </div>
 
-        <button type="button" class="btn-primary" onclick="prepararVistaPrevia()">👁️ Ver Vista Previa y Revisar</button>
+        <button type="button" class="btn-primary" onclick="prepararVistaPrevia()">👁️ Ver Vista Previa y Enviar</button>
     </div>
 
-    <!-- HISTORIAL RECIENTE -->
+    <!-- HISTORIAL LOCAL -->
     <div class="card">
         <h2>📋 Historial Local</h2>
         <div id="listaHistorial">
@@ -354,16 +406,59 @@
     </div>
 </div>
 
+<!-- Leaflet JS para el Mini-Mapa -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Enlace de Google Apps Script integrado
     const URL_GOOGLE_SHEETS = "https://script.google.com/macros/s/AKfycby8OtZ1v4wnk12fp5RfaxT80XjlKpiTaxO_KdP2iYihC8SqBTLvi1IbgtP0PV2FNmDu/exec";
+    let map = null;
+    let marker = null;
 
     window.onload = function() {
+        agregarFilaEquipo('TG2492', 'A405D604DB94'); // Fila por defecto
         cargarHistorial();
+        inicializarMapa(-21.992837, -63.66937);
     }
 
-    let mensajeFinalGlobal = "";
-    let datosActuales = {};
+    function inicializarMapa(lat, lon) {
+        const mapDiv = document.getElementById("minimap");
+        mapDiv.style.display = "block";
+        if (!map) {
+            map = L.map('minimap').setView([lat, lon], 16);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            marker = L.marker([lat, lon]).addTo(map);
+        } else {
+            map.setView([lat, lon], 16);
+            marker.setLatLng([lat, lon]);
+        }
+        setTimeout(() => { map.invalidateSize(); }, 300);
+    }
+
+    function actualizarMiniMapaManual() {
+        const val = document.getElementById("georeferencia").value.trim();
+        const partes = val.split(',');
+        if (partes.length === 2) {
+            const lat = parseFloat(partes[0]);
+            const lon = parseFloat(partes[1]);
+            if (!isNaN(lat) && !isNaN(lon)) {
+                inicializarMapa(lat, lon);
+            }
+        }
+    }
+
+    function agregarFilaEquipo(modelo = '', serie = '') {
+        const container = document.getElementById("listaEquiposContainer");
+        const div = document.createElement("div");
+        div.className = "equipo-row";
+        div.innerHTML = `
+            <input type="text" class="eq-modelo" placeholder="Modelo (Ej: TG2492)" value="${modelo}">
+            <input type="text" class="eq-serie" placeholder="Serie / MAC" value="${serie}">
+            <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
+        `;
+        container.appendChild(div);
+    }
 
     function obtenerGPS() {
         const campoGeo = document.getElementById("georeferencia");
@@ -374,6 +469,7 @@
                     const lat = position.coords.latitude.toFixed(6);
                     const lon = position.coords.longitude.toFixed(6);
                     campoGeo.value = `${lat},${lon}`;
+                    inicializarMapa(lat, lon);
                 },
                 (error) => {
                     alert("No se pudo obtener el GPS automáticamente.");
@@ -389,11 +485,12 @@
     function prepararVistaPrevia() {
         const cod = document.getElementById("codCliente").value.trim();
         const nom = document.getElementById("nomCliente").value.trim();
-        const nodoTapVal = document.getElementById("nodoTap").value.trim();
+        const nodo = document.getElementById("nodo").value.trim() || 'N/A';
+        const tap = document.getElementById("tap").value.trim() || 'N/A';
+        const boquilla = document.getElementById("boquilla").value.trim() || '1';
         const ref = document.getElementById("referencia").value.trim();
         const rep = document.getElementById("tipoReporte").value.trim();
         const corte = document.getElementById("corteTap").value;
-        const eq = document.getElementById("equiposMac").value.trim();
         const fac = document.getElementById("facturacion").value.trim();
         const geo = document.getElementById("georeferencia").value.trim();
         const tec = document.getElementById("tecnico").value.trim();
@@ -403,10 +500,16 @@
             return;
         }
 
-        let partesNodo = nodoTapVal.split('/');
-        let nodo = partesNodo[0] ? partesNodo[0].trim() : 'N/A';
-        let tap = partesNodo[1] ? partesNodo[1].trim() : 'N/A';
-        let boquilla = partesNodo[2] ? partesNodo[2].trim() : '1';
+        // Recopilar equipos dinámicos
+        let equiposTexto = [];
+        document.querySelectorAll('.equipo-row').forEach(row => {
+            const mod = row.querySelector('.eq-modelo').value.trim();
+            const ser = row.querySelector('.eq-serie').value.trim();
+            if(mod || ser) {
+                equiposTexto.push(`${mod}: ${ser}`);
+            }
+        });
+        let bloqueEquipos = equiposTexto.length > 0 ? `(${equiposTexto.join('\n')})` : '(SIN EQUIPOS)';
 
         let texto = `EMPRESA DATA RED\n` +
                     `*CODIGO:* ${cod}\n` +
@@ -417,7 +520,7 @@
                     `${ref}\n\n` +
                     `(${rep})\n` +
                     `CORTE DE TAP: ${corte}\n` +
-                    `(${eq})\n\n` +
+                    `${bloqueEquipos}\n\n` +
                     `(${fac})\n\n` +
                     `${geo}\n` +
                     `(${tec})`;
@@ -449,11 +552,11 @@
 
     async function enviarNubeYWhatsApp() {
         const btn = document.getElementById("btnEnviar");
-        btn.innerText = "⏳ Guardando en Google Sheets...";
+        btn.innerText = "⏳ Guardando...";
         btn.disabled = true;
 
-        // 1. Enviar a Google Sheets de manera silenciosa
-        if(URL_GOOGLE_SHEETS && URL_GOOGLE_SHEETS !== "") {
+        // 1. Envío a Google Sheets (Resiliente sin internet bloqueante)
+        if(URL_GOOGLE_SHEETS) {
             try {
                 await fetch(URL_GOOGLE_SHEETS, {
                     method: "POST",
@@ -468,14 +571,13 @@
                     })
                 });
             } catch (e) {
-                console.log("Error al sincronizar con nube, pero se abrirá WhatsApp.");
+                console.log("Sin conexión a la nube, guardado local.");
             }
         }
 
-        // 2. Guardar en historial local del celular
         guardarEnHistorial(datosActuales.cod, datosActuales.nom, mensajeFinalGlobal);
 
-        // 3. Abrir WhatsApp con el texto listo
+        // 2. Abrir WhatsApp
         let urlWp = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensajeFinalGlobal)}`;
         window.open(urlWp, '_blank');
 

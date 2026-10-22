@@ -132,53 +132,13 @@
             align-items: center;
         }
 
-        /* Checklist de Accesorios Oficiales del Catálogo */
-        .accessories-grid {
+        /* Fila dinámica para accesorios (Estilo equipos) */
+        .accesorio-row {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 8px;
-            background: #0b0f19;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 10px;
-            max-height: 240px;
-            overflow-y: auto;
-        }
-
-        .accessory-item {
-            display: flex;
+            grid-template-columns: 3fr 1fr 40px;
+            gap: 6px;
+            margin-bottom: 8px;
             align-items: center;
-            justify-content: space-between;
-            padding: 6px 8px;
-            background: #1e293b;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-        }
-
-        .accessory-item label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-main);
-            font-size: 0.8rem;
-            text-transform: none;
-            margin-bottom: 0;
-            cursor: pointer;
-            flex-grow: 1;
-        }
-
-        .accessory-item input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--primary);
-            cursor: pointer;
-        }
-
-        .accessory-qty {
-            width: 60px !important;
-            padding: 4px 6px !important;
-            text-align: center;
-            font-size: 0.85rem !important;
         }
 
         button {
@@ -424,12 +384,11 @@
             <button type="button" class="btn-add" onclick="agregarFilaEquipo()">➕ Agregar otro equipo</button>
         </div>
 
-        <!-- CHECKLIST DE CONTROLES Y ACCESORIOS (CATÁLOGO OFICIAL) -->
+        <!-- ACCESORIOS DINÁMICOS (CATÁLOGO OFICIAL) -->
         <div class="form-group">
-            <label>Controles y Accesorios Retirados (Checklist)</label>
-            <div class="accessories-grid" id="accessoriesContainer">
-                <!-- Generado dinámicamente -->
-            </div>
+            <label>Controles y Accesorios Retirados</label>
+            <div id="listaAccesoriosContainer"></div>
+            <button type="button" class="btn-add" onclick="agregarFilaAccesorio()">➕ Agregar otro accesorio</button>
         </div>
 
         <!-- GEOREFERENCIA CON MAPA HÍBRIDO GOOGLE Y LONG PRESS -->
@@ -487,53 +446,61 @@
     let map = null;
     let marker = null;
 
-    // Catálogo exacto extraído del PDF oficial de Tigo
+    // Catálogo oficial extraído del PDF
     const listaAccesoriosCatalogo = [
         "Control Remoto Universal SMK PRO14",
-        "Control Remoto CRS-211EMLC Kaon[cite: 12]",
-        "Control Remoto Tivo Series 4[cite: 12]",
-        "Control Remoto SMK PRO14.1 Universal[cite: 12]",
-        "Control Remoto UEI Tivo Creek Android Voice[cite: 12]",
-        "Basic RCU with Logo / Tigo[cite: 12]",
-        "Power Supply (Fuente) 1 Ampere[cite: 12]",
-        "Power Supply (Fuente) 1.25 Ampere[cite: 12]",
-        "Power Supply (Fuente) 1.5 Ampere[cite: 12]",
-        "Power Supply (Fuente) 2 Ampere[cite: 12]",
-        "Power Supply (Fuente) 2.5 Ampere[cite: 12]",
-        "Electric Power Cord (Cable de poder)[cite: 12]",
-        "6 FT Jumper Cable HDMI to HDMI[cite: 12]",
-        "Jumper Cable HDMI Premium 6FT[cite: 12]",
-        "6 FT Jumper Cable RCA to RCA[cite: 12]"
+        "Control Remoto CRS-211EMLC Kaon",
+        "Control Remoto Tivo Series 4",
+        "Control Remoto SMK PRO14.1 Universal",
+        "Control Remoto UEI Tivo Creek Android Voice",
+        "Basic RCU with Logo / Tigo",
+        "Power Supply (Fuente) 1 Ampere",
+        "Power Supply (Fuente) 1.25 Ampere",
+        "Power Supply (Fuente) 1.5 Ampere",
+        "Power Supply (Fuente) 2 Ampere",
+        "Power Supply (Fuente) 2.5 Ampere",
+        "Electric Power Cord (Cable de poder)",
+        "6 FT Jumper Cable HDMI to HDMI",
+        "Jumper Cable HDMI Premium 6FT",
+        "6 FT Jumper Cable RCA to RCA"
     ];
 
     window.onload = function() {
         agregarFilaEquipo('TG2492', 'A405D604DB94');
-        inicializarAccesorios();
+        agregarFilaAccesorio(); // Inicia con una fila de accesorio limpia
         cargarHistorial();
         inicializarMapa(-21.992837, -63.66937);
     }
 
-    function inicializarAccesorios() {
-        const container = document.getElementById("accessoriesContainer");
-        let html = "";
-        listaAccesoriosCatalogo.forEach((acc, index) => {
-            html += `
-                <div class="accessory-item">
-                    <label>
-                        <input type="checkbox" id="acc_chk_${index}" onchange="toggleAcc(${index})">
-                        ${acc}
-                    </label>
-                    <input type="number" id="acc_qty_${index}" class="accessory-qty" value="1" min="1" disabled>
-                </div>
-            `;
-        });
-        container.innerHTML = html;
+    function agregarFilaEquipo(modelo = '', serie = '') {
+        const container = document.getElementById("listaEquiposContainer");
+        const div = document.createElement("div");
+        div.className = "equipo-row";
+        div.innerHTML = `
+            <input type="text" class="eq-modelo" placeholder="Modelo (Ej: TG2492)" value="${modelo}">
+            <input type="text" class="eq-serie" placeholder="Serie / MAC" value="${serie}">
+            <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
+        `;
+        container.appendChild(div);
     }
 
-    function toggleAcc(index) {
-        const chk = document.getElementById(`acc_chk_${index}`);
-        const qty = document.getElementById(`acc_qty_${index}`);
-        qty.disabled = !chk.checked;
+    function agregarFilaAccesorio(nombreSeleccionado = '', cantidad = '1') {
+        const container = document.getElementById("listaAccesoriosContainer");
+        const div = document.createElement("div");
+        div.className = "accesorio-row";
+        
+        let optionsHtml = `<option value="">-- Seleccionar accesorio --</option>`;
+        listaAccesoriosCatalogo.forEach(item => {
+            let selected = (item === nombreSeleccionado) ? 'selected' : '';
+            optionsHtml += `<option value="${item}" ${selected}>${item}</option>`;
+        });
+
+        div.innerHTML = `
+            <select class="acc-nombre">${optionsHtml}</select>
+            <input type="number" class="acc-cantidad" value="${cantidad}" min="1">
+            <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
+        `;
+        container.appendChild(div);
     }
 
     function inicializarMapa(lat, lon) {
@@ -619,18 +586,6 @@
         window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(geo)}`, '_blank');
     }
 
-    function agregarFilaEquipo(modelo = '', serie = '') {
-        const container = document.getElementById("listaEquiposContainer");
-        const div = document.createElement("div");
-        div.className = "equipo-row";
-        div.innerHTML = `
-            <input type="text" class="eq-modelo" placeholder="Modelo (Ej: TG2492)" value="${modelo}">
-            <input type="text" class="eq-serie" placeholder="Serie / MAC" value="${serie}">
-            <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
-        `;
-        container.appendChild(div);
-    }
-
     function obtenerGPS() {
         const campoGeo = document.getElementById("georeferencia");
         if (navigator.geolocation) {
@@ -681,13 +636,13 @@
         });
         let bloqueEquipos = equiposTexto.length > 0 ? `(${equiposTexto.join('\n')})` : '(SIN EQUIPOS)';
 
-        // Recopilar accesorios marcados
+        // Recopilar accesorios dinámicos
         let accesoriosTexto = [];
-        listaAccesoriosCatalogo.forEach((acc, index) => {
-            const chk = document.getElementById(`acc_chk_${index}`);
-            if(chk && chk.checked) {
-                const qty = document.getElementById(`acc_qty_${index}`).value || '1';
-                accesoriosTexto.push(`- ${acc}: ${qty}`);
+        document.querySelectorAll('.accesorio-row').forEach(row => {
+            const nombre = row.querySelector('.acc-nombre').value;
+            const cantidad = row.querySelector('.acc-cantidad').value || '1';
+            if(nombre) {
+                accesoriosTexto.push(`- ${nombre}: ${cantidad}`);
             }
         });
         let bloqueAccesorios = accesoriosTexto.length > 0 ? `ACCESORIOS RETIRADOS:\n` + accesoriosTexto.join('\n') : '';
@@ -775,7 +730,7 @@
     }
 
     function cargarHistorial() {
-        let historial = JSON.parse(localStorage.getItem('datarel_historial')) || JSON.parse(localStorage.getItem('datared_historial')) || [];
+        let historial = JSON.parse(localStorage.getItem('datared_historial')) || [];
         let contenedor = document.getElementById("listaHistorial");
         
         if(historial.length === 0) {

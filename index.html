@@ -173,6 +173,18 @@
             background-color: #065f46;
         }
 
+        .btn-gmaps {
+            background-color: #1e40af;
+            color: white;
+            width: 100%;
+            margin-top: 8px;
+            font-size: 0.85rem;
+            padding: 10px;
+        }
+        .btn-gmaps:hover {
+            background-color: #1d4ed8;
+        }
+
         .btn-add {
             background-color: #334155;
             color: var(--primary);
@@ -191,7 +203,7 @@
 
         #minimap {
             width: 100%;
-            height: 300px;
+            height: 280px;
             border-radius: 8px;
             margin-top: 8px;
             border: 1px solid var(--border);
@@ -363,7 +375,7 @@
             <button type="button" class="btn-add" onclick="agregarFilaEquipo()">➕ Agregar otro equipo</button>
         </div>
 
-        <!-- GEOREFERENCIA CON MAPA HÍBRIDO Y MANTENER PRESIONADO -->
+        <!-- GEOREFERENCIA CON MAPA Y BOTÓN DE GMAPS -->
         <div class="form-group">
             <label>Georreferencia (GPS, Coordenadas o Mantén presionado el mapa)</label>
             <div class="gps-section">
@@ -371,6 +383,7 @@
                 <button type="button" class="btn-gps" onclick="obtenerGPS()">📍 GPS Actual</button>
             </div>
             <div id="minimap"></div>
+            <button type="button" class="btn-gmaps" onclick="abrirGoogleMapsOficial()">🌍 Abrir ubicación exacta en Google Maps</button>
             <div class="map-instruction">💡 Mantén presionado unos segundos el mapa para marcar el punto exacto.</div>
         </div>
 
@@ -425,39 +438,29 @@
 
     function inicializarMapa(lat, lon) {
         if (!map) {
-            // Capa de Calles detallada
-            const calles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+            // Capa de Calles y Nombres ultranítida (CARTO Voyager)
+            const callesNombres = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { 
                 maxZoom: 20, 
-                attribution: '© OpenStreetMap' 
+                attribution: '&copy; <a href="https://carto.com/">CARTO</a>' 
             });
             
-            // Satélite con zoom extendido (maxNativeZoom permite acercar al máximo sin cuadros grises)
+            // Satélite Esri
             const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
                 maxZoom: 20, 
                 maxNativeZoom: 17, 
                 attribution: 'Tiles &copy; Esri' 
             });
 
-            // Capa de Nombres de Calles y Etiquetas (para poner sobre el satélite)
-            const etiquetas = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 20,
-                attribution: 'Labels &copy; Esri'
-            });
-
-            // Capa Híbrida (Satélite + Nombres de Calles combinados)
-            const hibrido = L.layerGroup([satelite, etiquetas]);
-
             map = L.map('minimap', {
                 center: [lat, lon],
                 zoom: 17,
-                layers: [hibrido], // Arranca por defecto en Híbrido (Satélite con nombres de calles)
+                layers: [callesNombres], // Inicia por defecto con nombres de calles claros y detallados
                 tap: false
             });
 
             const baseLayers = {
-                "🛰️ Híbrido (Satélite + Calles)": hibrido,
-                "🗺️ Solo Calles (Detalle Máximo)": calles,
-                "🌍 Solo Satélite": satelite
+                "🗺️ Calles y Nombres (Recomendado)": callesNombres,
+                "🛰️ Satélite": satelite
             };
             L.control.layers(baseLayers).addTo(map);
 
@@ -509,6 +512,15 @@
                 }
             }
         }
+    }
+
+    function abrirGoogleMapsOficial() {
+        const geo = document.getElementById("georeferencia").value.trim();
+        if (!geo) {
+            alert("Primero captura o marca una coordenada.");
+            return;
+        }
+        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(geo)}`, '_blank');
     }
 
     function agregarFilaEquipo(modelo = '', serie = '') {

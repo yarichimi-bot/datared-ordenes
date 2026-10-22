@@ -132,7 +132,7 @@
             align-items: center;
         }
 
-        /* Fila dinámica para accesorios (Estilo equipos) */
+        /* Fila dinámica para accesorios */
         .accesorio-row {
             display: grid;
             grid-template-columns: 3fr 1fr 40px;
@@ -384,7 +384,7 @@
             <button type="button" class="btn-add" onclick="agregarFilaEquipo()">➕ Agregar otro equipo</button>
         </div>
 
-        <!-- ACCESORIOS DINÁMICOS (CATÁLOGO OFICIAL) -->
+        <!-- ACCESORIOS DINÁMICOS (CATÁLOGO OFICIAL + SPLITTERS) -->
         <div class="form-group">
             <label>Controles y Accesorios Retirados</label>
             <div id="listaAccesoriosContainer"></div>
@@ -446,7 +446,7 @@
     let map = null;
     let marker = null;
 
-    // Catálogo oficial extraído del PDF
+    // Catálogo oficial con Splitter x2 y Splitter x3 añadidos
     const listaAccesoriosCatalogo = [
         "Control Remoto Universal SMK PRO14",
         "Control Remoto CRS-211EMLC Kaon",
@@ -462,12 +462,14 @@
         "Electric Power Cord (Cable de poder)",
         "6 FT Jumper Cable HDMI to HDMI",
         "Jumper Cable HDMI Premium 6FT",
-        "6 FT Jumper Cable RCA to RCA"
+        "6 FT Jumper Cable RCA to RCA",
+        "Splitter x2",
+        "Splitter x3"
     ];
 
     window.onload = function() {
         agregarFilaEquipo('TG2492', 'A405D604DB94');
-        agregarFilaAccesorio(); // Inicia con una fila de accesorio limpia
+        agregarFilaAccesorio();
         cargarHistorial();
         inicializarMapa(-21.992837, -63.66937);
     }

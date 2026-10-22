@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DATA RED - Control de Órdenes</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #38bdf8;
+            --primary-hover: #0ea5e9;
+            --accent: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 15px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 12px;
+        }
+
+        header h1 {
+            font-size: 1.4rem;
+            color: var(--primary);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        header p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 14px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: #0b0f19;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary);
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .gps-section {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        button {
+            cursor: pointer;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            transition: background 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: #0f172a;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-gps {
+            background-color: #047857;
+            color: white;
+            white-space: nowrap;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+        }
+
+        .btn-gps:hover {
+            background-color: #065f46;
+        }
+
+        /* Modal Vista Previa */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-box {
+            background: #0b0f19;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #38bdf8;
+            max-height: 220px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+
+        .counter-badge {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            margin-bottom: 15px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: #111827;
+        }
+
+        .safe { color: var(--accent); }
+        .warning { color: var(--warning); }
+        .danger-text { color: var(--danger); font-weight: bold; }
+
+        .modal-buttons {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .btn-secondary {
+            background-color: #334155;
+            color: white;
+        }
+
+        .btn-whatsapp {
+            background-color: #25d366;
+            color: white;
+        }
+
+        .history-item {
+            background: #0b0f19;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-info div {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .btn-sm {
+            padding: 6px 10px;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>EMPRESA DATA RED</h1>
+        <p>Registro Técnico + Google Sheets</p>
+    </header>
+
+    <!-- FORMULARIO -->
+    <div class="card">
+        <h2>📝 Nueva Orden</h2>
+        
+        <div class="row">
+            <div class="form-group">
+                <label>Código Cliente</label>
+                <input type="text" id="codCliente" placeholder="Ej: 2615301">
+            </div>
+            <div class="form-group">
+                <label>Nodo / TAP / Boquilla</label>
+                <input type="text" id="nodoTap" placeholder="Ej: YCB20 / D01 / 1">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Nombre del Usuario (Cliente)</label>
+            <input type="text" id="nomCliente" placeholder="Ej: Bryan Junior Mamani Ticona">
+        </div>
+
+        <div class="form-group">
+            <label>Referencia Domicilio</label>
+            <input type="text" id="referencia" placeholder="Ej: Casa esquina color cemento">
+        </div>
+
+        <div class="form-group">
+            <label>Tipo de Reporte / Trabajo</label>
+            <input type="text" id="tipoReporte" value="RETIRO DE EQUIPOS, SE FACTURA FUENTE">
+        </div>
+
+        <div class="row">
+            <div class="form-group">
+                <label>Corte de TAP</label>
+                <select id="corteTap">
+                    <option value="✅">✅ Sí (Corte OK)</option>
+                    <option value="❌">❌ No</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Equipos / MAC</label>
+                <input type="text" id="equiposMac" placeholder="Ej: TG2492: A405D604DB94">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Qué se Factura (Ítems)</label>
+            <input type="text" id="facturacion" placeholder="Ej: FUENTE 2.5A: 1">
+        </div>
+
+        <div class="form-group">
+            <label>Georreferencia (GPS Automático)</label>
+            <div class="gps-section">
+                <input type="text" id="georeferencia" placeholder="-21.992837,-63.66937">
+                <button type="button" class="btn-gps" onclick="obtenerGPS()">📍 Capturar GPS</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Técnico (Nombre y Cédula)</label>
+            <input type="text" id="tecnico" value="José Orlando Garcia G #3788">
+        </div>
+
+        <button type="button" class="btn-primary" onclick="prepararVistaPrevia()">👁️ Ver Vista Previa y Revisar</button>
+    </div>
+
+    <!-- HISTORIAL RECIENTE -->
+    <div class="card">
+        <h2>📋 Historial Local</h2>
+        <div id="listaHistorial">
+            <p style="color: var(--text-muted); font-size: 0.85rem; text-align: center;">No hay órdenes recientes.</p>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE VISTA PREVIA Y ENVÍO -->
+<div class="modal" id="modalPreview">
+    <div class="modal-content">
+        <h2 style="font-size: 1rem; margin-bottom: 10px; color: var(--primary);">🔍 Vista Previa del Mensaje</h2>
+        
+        <div class="preview-box" id="textoGenerado"></div>
+        
+        <div class="counter-badge" id="badgeContador">
+            <span>Límite de sistema: Máx 500 caracteres</span>
+            <span id="numCaracteres">0 / 500</span>
+        </div>
+
+        <div class="modal-buttons">
+            <button type="button" class="btn-whatsapp" id="btnEnviar" onclick="enviarNubeYWhatsApp()">🚀 Enviar a Google Sheets y WhatsApp</button>
+            <button type="button" class="btn-secondary" onclick="cerrarModal()">✏️ Modificar Datos</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Enlace de Google Apps Script integrado
+    const URL_GOOGLE_SHEETS = "https://script.google.com/macros/s/AKfycby8OtZ1v4wnk12fp5RfaxT80XjlKpiTaxO_KdP2iYihC8SqBTLvi1IbgtP0PV2FNmDu/exec";
+
+    window.onload = function() {
+        cargarHistorial();
+    }
+
+    let mensajeFinalGlobal = "";
+    let datosActuales = {};
+
+    function obtenerGPS() {
+        const campoGeo = document.getElementById("georeferencia");
+        if (navigator.geolocation) {
+            campoGeo.value = "Obteniendo GPS exacto...";
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude.toFixed(6);
+                    const lon = position.coords.longitude.toFixed(6);
+                    campoGeo.value = `${lat},${lon}`;
+                },
+                (error) => {
+                    alert("No se pudo obtener el GPS automáticamente.");
+                    campoGeo.value = "";
+                },
+                { enableHighAccuracy: true }
+            );
+        } else {
+            alert("Geolocalización no soportada.");
+        }
+    }
+
+    function prepararVistaPrevia() {
+        const cod = document.getElementById("codCliente").value.trim();
+        const nom = document.getElementById("nomCliente").value.trim();
+        const nodoTapVal = document.getElementById("nodoTap").value.trim();
+        const ref = document.getElementById("referencia").value.trim();
+        const rep = document.getElementById("tipoReporte").value.trim();
+        const corte = document.getElementById("corteTap").value;
+        const eq = document.getElementById("equiposMac").value.trim();
+        const fac = document.getElementById("facturacion").value.trim();
+        const geo = document.getElementById("georeferencia").value.trim();
+        const tec = document.getElementById("tecnico").value.trim();
+
+        if(!cod || !nom) {
+            alert("Por favor completa al menos el Código y Nombre del Cliente.");
+            return;
+        }
+
+        let partesNodo = nodoTapVal.split('/');
+        let nodo = partesNodo[0] ? partesNodo[0].trim() : 'N/A';
+        let tap = partesNodo[1] ? partesNodo[1].trim() : 'N/A';
+        let boquilla = partesNodo[2] ? partesNodo[2].trim() : '1';
+
+        let texto = `EMPRESA DATA RED\n` +
+                    `*CODIGO:* ${cod}\n` +
+                    `*USUARIO:* ${nom}\n` +
+                    `*NODO:* ${nodo}\n` +
+                    `*TAP:* ${tap}\n` +
+                    `*Boquilla*: ${boquilla}\n\n` +
+                    `${ref}\n\n` +
+                    `(${rep})\n` +
+                    `CORTE DE TAP: ${corte}\n` +
+                    `(${eq})\n\n` +
+                    `(${fac})\n\n` +
+                    `${geo}\n` +
+                    `(${tec})`;
+
+        mensajeFinalGlobal = texto;
+        datosActuales = { cod, nom, geo, tec };
+        
+        document.getElementById("textoGenerado").innerText = texto;
+
+        let cant = texto.length;
+        let badge = document.getElementById("numCaracteres");
+        badge.innerText = `${cant} / 500 car.`;
+        
+        if(cant > 500) {
+            badge.className = "danger-text";
+            badge.innerText += " ⚠️ ¡Supera el límite de 500!";
+        } else if(cant > 450) {
+            badge.className = "warning";
+        } else {
+            badge.className = "safe";
+        }
+
+        document.getElementById("modalPreview").style.display = "flex";
+    }
+
+    function cerrarModal() {
+        document.getElementById("modalPreview").style.display = "none";
+    }
+
+    async function enviarNubeYWhatsApp() {
+        const btn = document.getElementById("btnEnviar");
+        btn.innerText = "⏳ Guardando en Google Sheets...";
+        btn.disabled = true;
+
+        // 1. Enviar a Google Sheets de manera silenciosa
+        if(URL_GOOGLE_SHEETS && URL_GOOGLE_SHEETS !== "") {
+            try {
+                await fetch(URL_GOOGLE_SHEETS, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        tecnico: datosActuales.tec,
+                        codCliente: datosActuales.cod,
+                        nomCliente: datosActuales.nom,
+                        georeferencia: datosActuales.geo,
+                        mensajeCompleto: mensajeFinalGlobal
+                    })
+                });
+            } catch (e) {
+                console.log("Error al sincronizar con nube, pero se abrirá WhatsApp.");
+            }
+        }
+
+        // 2. Guardar en historial local del celular
+        guardarEnHistorial(datosActuales.cod, datosActuales.nom, mensajeFinalGlobal);
+
+        // 3. Abrir WhatsApp con el texto listo
+        let urlWp = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensajeFinalGlobal)}`;
+        window.open(urlWp, '_blank');
+
+        btn.innerText = "🚀 Enviar a Google Sheets y WhatsApp";
+        btn.disabled = false;
+        cerrarModal();
+    }
+
+    function guardarEnHistorial(codigo, cliente, texto) {
+        let historial = JSON.parse(localStorage.getItem('datared_historial')) || [];
+        historial.unshift({ codigo, cliente, texto, fecha: new Date().toLocaleTimeString() });
+        if(historial.length > 10) historial.pop();
+        localStorage.setItem('datared_historial', JSON.stringify(historial));
+        cargarHistorial();
+    }
+
+    function cargarHistorial() {
+        let historial = JSON.parse(localStorage.getItem('datared_historial')) || [];
+        let contenedor = document.getElementById("listaHistorial");
+        
+        if(historial.length === 0) {
+            contenedor.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center;">No hay órdenes recientes.</p>`;
+            return;
+        }
+
+        let html = "";
+        historial.forEach((item, index) => {
+            html += `<div class="history-item">
+                        <div class="history-info">
+                            <strong>[${item.codigo}] ${item.cliente}</strong>
+                            <div>Guardado a las ${item.fecha}</div>
+                        </div>
+                        <button class="btn-secondary btn-sm" onclick="copiarHistorial(${index})">📋 Copiar</button>
+                     </div>`;
+        });
+        contenedor.innerHTML = html;
+    }
+
+    function copiarHistorial(index) {
+        let historial = JSON.parse(localStorage.getItem('datared_historial')) || [];
+        navigator.clipboard.writeText(historial[index].texto);
+        alert("¡Reporte copiado al portapapeles!");
+    }
+</script>
+
+</body>
+</html>

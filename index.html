@@ -126,13 +126,12 @@
 
         .equipo-row {
             display: grid;
-            grid-template-columns: 2fr 2fr 40px;
+            grid-template-columns: 2fr 2fr 42px 40px;
             gap: 6px;
             margin-bottom: 8px;
             align-items: center;
         }
 
-        /* Fila dinámica para accesorios */
         .accesorio-row {
             display: grid;
             grid-template-columns: 3fr 1fr 40px;
@@ -203,6 +202,16 @@
             margin-top: 5px;
         }
 
+        .btn-scan {
+            background-color: #0284c7;
+            color: white;
+            padding: 10px;
+            font-size: 0.9rem;
+        }
+        .btn-scan:hover {
+            background-color: #0369a1;
+        }
+
         .btn-del {
             background-color: #7f1d1d;
             color: white;
@@ -227,7 +236,7 @@
             text-align: right;
         }
 
-        /* Modal Vista Previa */
+        /* Modal Escáner con visor guía y linterna */
         .modal {
             display: none;
             position: fixed;
@@ -235,7 +244,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.95);
             justify-content: center;
             align-items: center;
             padding: 15px;
@@ -249,9 +258,57 @@
             width: 100%;
             max-width: 500px;
             padding: 20px;
-            max-height: 90vh;
+            max-height: 95vh;
             display: flex;
             flex-direction: column;
+            align-items: center;
+        }
+
+        .scanner-container {
+            position: relative;
+            width: 100%;
+            max-height: 280px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid var(--primary);
+            background: black;
+            margin-bottom: 12px;
+        }
+
+        #videoPreview {
+            width: 100%;
+            height: 280px;
+            object-fit: cover;
+        }
+
+        /* Cuadro guía central para enfocar el código exacto */
+        .scan-laser-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 70px;
+            border: 2px dashed #38bdf8;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+            pointer-events: none;
+            border-radius: 6px;
+        }
+
+        .scanner-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-flash {
+            background-color: #d97706;
+            color: white;
+        }
+        .btn-flash:hover {
+            background-color: #b45309;
         }
 
         .preview-box {
@@ -267,6 +324,7 @@
             max-height: 200px;
             overflow-y: auto;
             margin-bottom: 10px;
+            width: 100%;
         }
 
         .counter-badge {
@@ -278,6 +336,7 @@
             padding: 6px 10px;
             border-radius: 6px;
             background: #111827;
+            width: 100%;
         }
 
         .safe { color: var(--accent); }
@@ -288,11 +347,13 @@
             display: grid;
             grid-template-columns: 1fr;
             gap: 10px;
+            width: 100%;
         }
 
         .btn-secondary {
             background-color: #334155;
             color: white;
+            width: 100%;
         }
 
         .btn-whatsapp {
@@ -377,14 +438,14 @@
             </div>
         </div>
 
-        <!-- EQUIPOS DINÁMICOS -->
+        <!-- EQUIPOS DINÁMICOS CON ESCÁNER INTELIGENTE -->
         <div class="form-group">
             <label>Equipos a Retirar / Instalar (Modelo y Serie/MAC)</label>
             <div id="listaEquiposContainer"></div>
             <button type="button" class="btn-add" onclick="agregarFilaEquipo()">➕ Agregar otro equipo</button>
         </div>
 
-        <!-- ACCESORIOS DINÁMICOS (CATÁLOGO OFICIAL + SPLITTERS) -->
+        <!-- ACCESORIOS DINÁMICOS -->
         <div class="form-group">
             <label>Controles y Accesorios Retirados</label>
             <div id="listaAccesoriosContainer"></div>
@@ -420,6 +481,23 @@
     </div>
 </div>
 
+<!-- MODAL ESCÁNER CÁMARA (CON LINTERNA Y GUÍA) -->
+<div class="modal" id="modalScanner">
+    <div class="modal-content">
+        <h2 style="font-size: 1rem; margin-bottom: 10px; color: var(--primary);">🔦 Enfoca el código dentro del recuadro</h2>
+        <div class="scanner-container">
+            <video id="videoPreview" autoplay playsinline></video>
+            <div class="scan-laser-box"></div>
+        </div>
+        <p id="scanStatus" style="font-size: 0.8rem; color: var(--accent); margin-bottom: 10px; text-align: center;">Buscando código de serie o MAC...</p>
+        
+        <div class="scanner-controls">
+            <button type="button" class="btn-flash" id="btnFlash" onclick="toggleLinterna()">💡 Linterna: OFF</button>
+            <button type="button" class="btn-secondary" onclick="cerrarScanner()">❌ Cancelar</button>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL VISTA PREVIA -->
 <div class="modal" id="modalPreview">
     <div class="modal-content">
@@ -445,8 +523,12 @@
     const URL_GOOGLE_SHEETS = "https://script.google.com/macros/s/AKfycby8OtZ1v4wnk12fp5RfaxT80XjlKpiTaxO_KdP2iYihC8SqBTLvi1IbgtP0PV2FNmDu/exec";
     let map = null;
     let marker = null;
+    let currentInputToScan = null;
+    let videoStream = null;
+    let scanningActive = false;
+    let flashOn = false;
+    let trackRef = null;
 
-    // Catálogo oficial con Splitter x2 y Splitter x3 añadidos
     const listaAccesoriosCatalogo = [
         "Control Remoto Universal SMK PRO14",
         "Control Remoto CRS-211EMLC Kaon",
@@ -481,6 +563,7 @@
         div.innerHTML = `
             <input type="text" class="eq-modelo" placeholder="Modelo (Ej: TG2492)" value="${modelo}">
             <input type="text" class="eq-serie" placeholder="Serie / MAC" value="${serie}">
+            <button type="button" class="btn-scan" onclick="abrirScanner(this)" title="Escanear con cámara">📷</button>
             <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
         `;
         container.appendChild(div);
@@ -503,6 +586,93 @@
             <button type="button" class="btn-del" onclick="this.parentElement.remove()">✕</button>
         `;
         container.appendChild(div);
+    }
+
+    // Funciones avanzadas de Escáner y Linterna
+    async function abrirScanner(btn) {
+        currentInputToScan = btn.previousElementSibling;
+        const modal = document.getElementById("modalScanner");
+        modal.style.display = "flex";
+        scanningActive = true;
+        flashOn = false;
+        document.getElementById("btnFlash").innerText = "💡 Linterna: OFF";
+
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: "environment" } 
+            });
+            const video = document.getElementById("videoPreview");
+            video.srcObject = videoStream;
+            
+            trackRef = videoStream.getVideoTracks()[0];
+
+            if ('BarcodeDetector' in window) {
+                const barcodeDetector = new BarcodeDetector({ formats: ['code_128', 'code_39', 'qr_code', 'ean_13', 'data_matrix'] });
+                detectarCodigosInteligente(video, barcodeDetector);
+            } else {
+                document.getElementById("scanStatus").innerText = "⚠️ Lector automático no soportado en este navegador. Copia/pega o escribe.";
+            }
+        } catch (err) {
+            alert("No se pudo acceder a la cámara.");
+            cerrarScanner();
+        }
+    }
+
+    async function toggleLinterna() {
+        if (!trackRef) return;
+        try {
+            flashOn = !flashOn;
+            await trackRef.applyConstraints({
+                advanced: [{ torch: flashOn }]
+            });
+            document.getElementById("btnFlash").innerText = flashOn ? "💡 Linterna: ON" : "💡 Linterna: OFF";
+        } catch (e) {
+            alert("La linterna no está disponible en este dispositivo.");
+            flashOn = false;
+        }
+    }
+
+    async function detectarCodigosInteligente(video, detector) {
+        if (!scanningActive) return;
+        try {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                const barcodes = await detector.detect(video);
+                if (barcodes.length > 0) {
+                    // Filtramos y seleccionamos el código más probable (ej: series largas o MACs)
+                    let codigoValido = null;
+                    for (let b of barcodes) {
+                        let val = b.rawValue.trim();
+                        // Descartamos códigos muy cortos que suelen ser de control interno o lote
+                        if (val.length >= 6) {
+                            codigoValido = val;
+                            break;
+                        }
+                    }
+
+                    if (codigoValido) {
+                        currentInputToScan.value = codigoValido;
+                        if(navigator.vibrate) navigator.vibrate(100);
+                        cerrarScanner();
+                        return;
+                    }
+                }
+            }
+        } catch (e) {
+            console.log("Escaneo en proceso...", e);
+        }
+        requestAnimationFrame(() => detectarCodigosInteligente(video, detector));
+    }
+
+    function cerrarScanner() {
+        scanningActive = false;
+        if (trackRef && flashOn) {
+            trackRef.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
+        }
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+        }
+        document.getElementById("modalScanner").style.display = "none";
     }
 
     function inicializarMapa(lat, lon) {
@@ -638,7 +808,6 @@
         });
         let bloqueEquipos = equiposTexto.length > 0 ? `(${equiposTexto.join('\n')})` : '(SIN EQUIPOS)';
 
-        // Recopilar accesorios dinámicos
         let accesoriosTexto = [];
         document.querySelectorAll('.accesorio-row').forEach(row => {
             const nombre = row.querySelector('.acc-nombre').value;

@@ -236,7 +236,7 @@
             text-align: right;
         }
 
-        /* Modal Escáner con visor guía estricto */
+        /* Modal Escáner con visor guía */
         .modal {
             display: none;
             position: fixed;
@@ -281,7 +281,7 @@
             object-fit: cover;
         }
 
-        /* Cuadro guía central estricto */
+        /* Cuadro guía central */
         .scan-laser-box {
             position: absolute;
             top: 50%;
@@ -306,7 +306,7 @@
         .btn-flash {
             background-color: #d97706;
             color: white;
-            display: none; /* Oculto por defecto hasta comprobar compatibilidad */
+            display: flex;
         }
         .btn-flash:hover {
             background-color: #b45309;
@@ -482,15 +482,15 @@
     </div>
 </div>
 
-<!-- MODAL ESCÁNER CÁMARA (ESTRICTO EN ZONA VERDE) -->
+<!-- MODAL ESCÁNER CÁMARA CON RECORTE ESTRICTO -->
 <div class="modal" id="modalScanner">
     <div class="modal-content">
-        <h2 style="font-size: 1rem; margin-bottom: 10px; color: var(--primary);">🎯 Alinea el código en el recuadro verde</h2>
+        <h2 style="font-size: 1rem; margin-bottom: 10px; color: var(--primary);">🎯 Centra el código en el recuadro verde</h2>
         <div class="scanner-container">
             <video id="videoPreview" autoplay playsinline></video>
             <div class="scan-laser-box"></div>
         </div>
-        <p id="scanStatus" style="font-size: 0.8rem; color: var(--accent); margin-bottom: 10px; text-align: center;">Buscando código dentro del recuadro...</p>
+        <p id="scanStatus" style="font-size: 0.8rem; color: var(--accent); margin-bottom: 10px; text-align: center;">Leyendo código dentro del recuadro...</p>
         
         <div class="scanner-controls">
             <button type="button" class="btn-flash" id="btnFlash" onclick="toggleLinterna()">💡 Linterna: OFF</button>
@@ -529,6 +529,8 @@
     let scanningActive = false;
     let flashOn = false;
     let trackRef = null;
+    let scanCanvas = document.createElement('canvas');
+    let scanCtx = scanCanvas.getContext('2d');
 
     const listaAccesoriosCatalogo = [
         "Control Remoto Universal SMK PRO14",
@@ -589,7 +591,6 @@
         container.appendChild(div);
     }
 
-    // Funciones avanzadas de Escáner y verificación por zona y linterna segura
     async function abrirScanner(btn) {
         currentInputToScan = btn.previousElementSibling;
         const modal = document.getElementById("modalScanner");
@@ -597,28 +598,20 @@
         scanningActive = true;
         flashOn = false;
         
-        const btnFlash = document.getElementById("btnFlash");
-        btnFlash.style.display = "none"; // Oculto hasta verificar hardware
+        document.getElementById("btnFlash").innerText = "💡 Linterna: OFF";
 
         try {
             videoStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment" } 
+                video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
             });
             const video = document.getElementById("videoPreview");
             video.srcObject = videoStream;
             
             trackRef = videoStream.getVideoTracks()[0];
 
-            // Validar soporte real de linterna (Torch) en el dispositivo actual
-            const capabilities = trackRef.getCapabilities ? trackRef.getCapabilities() : {};
-            if (capabilities.torch) {
-                btnFlash.style.display = "flex";
-                btnFlash.innerText = "💡 Linterna: OFF";
-            }
-
             if ('BarcodeDetector' in window) {
                 const barcodeDetector = new BarcodeDetector({ formats: ['code_128', 'code_39', 'qr_code', 'ean_13', 'data_matrix'] });
-                detectarCodigosEnZona(video, barcodeDetector);
+                escanearSoloEnRecuadro(video, barcodeDetector);
             } else {
                 document.getElementById("scanStatus").innerText = "⚠️ Lector automático no soportado en este navegador. Escribe o pega el código.";
             }
@@ -637,60 +630,48 @@
             });
             document.getElementById("btnFlash").innerText = flashOn ? "💡 Linterna: ON" : "💡 Linterna: OFF";
         } catch (e) {
+            alert("Linterna no soportada o bloqueada por el navegador en este dispositivo.");
             flashOn = false;
         }
     }
 
-    async function detectarCodigosEnZona(video, detector) {
+    async function escanearSoloEnRecuadro(video, detector) {
         if (!scanningActive) return;
         try {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                const barcodes = await detector.detect(video);
+                const vW = video.videoWidth;
+                const vH = video.videoHeight;
+
+                // Definimos el área exacta que corresponde al recuadro verde central (75% ancho, 60px alto)
+                const cropW = vW * 0.75;
+                const cropH = 80;
+                const cropX = (vW - cropW) / 2;
+                const cropY = (vH - cropH) / 2;
+
+                scanCanvas.width = cropW;
+                scanCanvas.height = cropH;
+
+                // Recortamos físicamente solo el área del recuadro del video al canvas
+                scanCtx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+                // Detectamos códigos únicamente en esa porción recortada
+                const barcodes = await detector.detect(scanCanvas);
                 if (barcodes.length > 0) {
-                    const videoWidth = video.videoWidth || 640;
-                    const videoHeight = video.videoHeight || 480;
-
-                    // Definimos los límites aproximados del recuadro verde central en el frame de video
-                    const boxXMin = videoWidth * 0.1;
-                    const boxXMax = videoWidth * 0.9;
-                    const boxYMin = videoHeight * 0.3;
-                    const boxYMax = videoHeight * 0.7;
-
-                    let codigoValido = null;
-
                     for (let b of barcodes) {
                         let val = b.rawValue.trim();
-                        // Validamos longitud típica de series/MACs Tigo (>= 6 caracteres)
-                        if (val.length >= 6) {
-                            if (b.boundingBox) {
-                                const { x, y, width, height } = b.boundingBox;
-                                // Verificamos si el código detectado está dentro o cruza el recuadro central
-                                const centerX = x + width / 2;
-                                const centerY = y + height / 2;
-                                if (centerX >= boxXMin && centerX <= boxXMax && centerY >= boxYMin && centerY <= boxYMax) {
-                                    codigoValido = val;
-                                    break;
-                                }
-                            } else {
-                                // Si el navegador no reporta boundingBox, aceptamos el válido
-                                codigoValido = val;
-                                break;
-                            }
+                        if (val.length >= 5) {
+                            currentInputToScan.value = val;
+                            if(navigator.vibrate) navigator.vibrate(100);
+                            cerrarScanner();
+                            return;
                         }
-                    }
-
-                    if (codigoValido) {
-                        currentInputToScan.value = codigoValido;
-                        if(navigator.vibrate) navigator.vibrate(100);
-                        cerrarScanner();
-                        return;
                     }
                 }
             }
         } catch (e) {
-            console.log("Buscando en zona...", e);
+            console.log("Buscando en área...", e);
         }
-        requestAnimationFrame(() => detectarCodigosEnZona(video, detector));
+        requestAnimationFrame(() => escanearSoloEnRecuadro(video, detector));
     }
 
     function cerrarScanner() {
@@ -942,9 +923,10 @@
         let html = "";
         historial.forEach((item, index) => {
             html += `<div class="history-item">
-                        The history-info
-                        <strong>[${item.codigo}] ${item.cliente}</strong>
-                        <div>Guardado a las ${item.fecha}</div>
+                        <div class="history-info">
+                            <strong>[${item.codigo}] ${item.cliente}</strong>
+                            <div>Guardado a las ${item.fecha}</div>
+                        </div>
                         <button class="btn-secondary btn-sm" onclick="copiarHistorial(${index})">📋 Copiar</button>
                      </div>`;
         });
